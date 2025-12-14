@@ -170,6 +170,33 @@ class LibraryController: ObservableObject {
         }
     }
     
+    // MARK: - Import Downloaded Book (from Gutenberg)
+    
+    func importDownloadedBook(from url: URL, title: String, author: String, coverImage: Data?) {
+        let fileManager = FileManager.default
+        
+        do {
+            let attributes = try fileManager.attributesOfItem(atPath: url.path)
+            let fileSize = attributes[.size] as? Int64 ?? 0
+            let fileType = url.pathExtension.lowercased()
+            
+            _ = coreDataManager.createDocument(
+                title: title,
+                author: author,
+                filePath: url.path,
+                fileType: fileType,
+                fileSize: fileSize,
+                pageCount: 0,
+                coverImage: coverImage
+            )
+            
+            loadDocuments()
+        } catch {
+            print("Failed to import downloaded book: \(error)")
+            importError = error.localizedDescription
+        }
+    }
+    
     // MARK: - Document Actions
     
     func deleteDocument(_ document: Document) {

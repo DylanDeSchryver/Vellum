@@ -84,6 +84,11 @@ struct ReaderView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 16) {
+                        if renderer.isEPUB && !renderer.chapters.isEmpty {
+                            Button(action: { showingTableOfContents = true }) {
+                                Image(systemName: "list.bullet")
+                            }
+                        }
                         Button(action: { showingBookmarks = true }) {
                             Image(systemName: "bookmark")
                         }
@@ -113,6 +118,9 @@ struct ReaderView: View {
         }
         .sheet(isPresented: $showingBookmarks) {
             BookmarksSheet(document: document, renderer: renderer)
+        }
+        .sheet(isPresented: $showingTableOfContents) {
+            EPUBTableOfContentsSheet(renderer: renderer)
         }
     }
     

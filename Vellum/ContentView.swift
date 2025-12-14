@@ -8,6 +8,7 @@ struct ContentView: View {
     
     enum Tab {
         case library
+        case discover
         case collections
         case reading
     }
@@ -20,6 +21,12 @@ struct ContentView: View {
                         Label("Library", systemImage: "books.vertical")
                     }
                     .tag(Tab.library)
+                
+                DiscoverView()
+                    .tabItem {
+                        Label("Discover", systemImage: "globe")
+                    }
+                    .tag(Tab.discover)
                 
                 CollectionsView()
                     .tabItem {
