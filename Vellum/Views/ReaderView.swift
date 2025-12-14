@@ -15,40 +15,85 @@ struct ReaderView: View {
     @State private var brightness: Double = UIScreen.main.brightness
     
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // Background
-                readingSettings.pageTheme.backgroundColor
-                    .ignoresSafeArea()
-                
-                // Content
-                if renderer.isLoading {
-                    ProgressView("Loading...")
-                        .foregroundStyle(readingSettings.pageTheme.textColor)
-                } else if let error = renderer.error {
-                    VStack(spacing: 16) {
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.largeTitle)
-                            .foregroundStyle(.orange)
-                        Text(error)
-                            .foregroundStyle(readingSettings.pageTheme.textColor)
+        NavigationStack {
+            GeometryReader { geometry in
+                ZStack {
+                    // Background
+                    readingSettings.pageTheme.backgroundColor
+                        .ignoresSafeArea()
+                    
+                    // Content
+                    if renderer.isLoading {
+                        VStack(spacing: 12) {
+                            ProgressView()
+                            Text("Loading document...")
+                                .foregroundStyle(readingSettings.pageTheme.textColor)
+                        }
+                    } else if renderer.isPaginating && renderer.pages.isEmpty {
+                        VStack(spacing: 12) {
+                            ProgressView()
+                            Text("Preparing pages...")
+                                .foregroundStyle(readingSettings.pageTheme.textColor)
+                        }
+                    } else if let error = renderer.error {
+                        VStack(spacing: 16) {
+                            Image(systemName: "exclamationmark.triangle")
+                                .font(.largeTitle)
+                                .foregroundStyle(.orange)
+                            Text(error)
+                                .foregroundStyle(readingSettings.pageTheme.textColor)
+                                .multilineTextAlignment(.center)
+                                .padding()
+                        }
+                    } else {
+                        documentContent(geometry: geometry)
+                            .contentShape(Rectangle())
+                            .gesture(
+                                DragGesture(minimumDistance: 50)
+                                    .onEnded { value in
+                                        if value.translation.width < -50 {
+                                            withAnimation { renderer.nextPage() }
+                                        } else if value.translation.width > 50 {
+                                            withAnimation { renderer.previousPage() }
+                                        }
+                                    }
+                            )
+                            .onTapGesture { location in
+                                handleTap(at: location, screenWidth: geometry.size.width)
+                            }
                     }
-                } else {
-                    documentContent(geometry: geometry)
+                    
+                    // Bottom controls (progress, slider)
+                    if showingControls {
+                        VStack {
+                            Spacer()
+                            bottomControlBar
+                        }
+                    }
                 }
-                
-                // Controls overlay
-                if showingControls {
-                    controlsOverlay
+            }
+            .navigationTitle(document.title ?? "Document")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(showingControls ? .visible : .hidden, for: .navigationBar)
+            .toolbar(showingControls ? .visible : .hidden, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark")
+                    }
                 }
-                
-                // Tap zones for page turning
-                if readingSettings.tapToTurn && !readingSettings.scrollMode {
-                    tapZones(geometry: geometry)
+                ToolbarItem(placement: .topBarTrailing) {
+                    HStack(spacing: 16) {
+                        Button(action: { showingBookmarks = true }) {
+                            Image(systemName: "bookmark")
+                        }
+                        Button(action: { showingSettings = true }) {
+                            Image(systemName: "textformat.size")
+                        }
+                    }
                 }
             }
         }
-        .statusBarHidden(!showingControls)
         .onAppear {
             renderer.load(document: document)
             if readingSettings.keepScreenAwake {
@@ -64,266 +109,182 @@ struct ReaderView: View {
         }
         .sheet(isPresented: $showingSettings) {
             ReaderSettingsSheet()
+                .environmentObject(readingSettings)
         }
         .sheet(isPresented: $showingBookmarks) {
             BookmarksSheet(document: document, renderer: renderer)
         }
-        .gesture(
-            TapGesture()
-                .onEnded { _ in
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showingControls.toggle()
-                    }
+    }
+    
+    private func handleTap(at location: CGPoint, screenWidth: CGFloat) {
+        if readingSettings.tapToTurn {
+            if location.x < screenWidth * 0.3 {
+                withAnimation { renderer.previousPage() }
+            } else if location.x > screenWidth * 0.7 {
+                withAnimation { renderer.nextPage() }
+            } else {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showingControls.toggle()
                 }
-        )
+            }
+        } else {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showingControls.toggle()
+            }
+        }
     }
     
     // MARK: - Document Content
     
     @ViewBuilder
     private func documentContent(geometry: GeometryProxy) -> some View {
-        let fileType = document.fileType?.lowercased() ?? "pdf"
-        
-        switch fileType {
-        case "pdf":
-            PDFReaderContent(renderer: renderer, settings: readingSettings)
-        case "txt", "rtf":
-            TextReaderContent(renderer: renderer, settings: readingSettings)
-        default:
-            Text("Unsupported format")
-                .foregroundStyle(readingSettings.pageTheme.textColor)
-        }
-    }
-    
-    // MARK: - Controls Overlay
-    
-    private var controlsOverlay: some View {
-        VStack(spacing: 0) {
-            // Top bar
-            HStack {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.body.weight(.medium))
-                        .foregroundStyle(.primary)
-                        .padding(10)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Circle())
-                }
-                
-                Spacer()
-                
-                Text(document.title ?? "Document")
-                    .font(.headline)
-                    .lineLimit(1)
-                
-                Spacer()
-                
-                HStack(spacing: 12) {
-                    Button {
-                        showingBookmarks = true
-                    } label: {
-                        Image(systemName: "bookmark")
-                            .font(.body.weight(.medium))
-                            .foregroundStyle(.primary)
-                            .padding(10)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Circle())
-                    }
-                    
-                    Button {
-                        showingSettings = true
-                    } label: {
-                        Image(systemName: "textformat.size")
-                            .font(.body.weight(.medium))
-                            .foregroundStyle(.primary)
-                            .padding(10)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Circle())
-                    }
-                }
-            }
-            .padding()
-            .background(
-                LinearGradient(
-                    colors: [readingSettings.pageTheme.backgroundColor, readingSettings.pageTheme.backgroundColor.opacity(0)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
-            
-            Spacer()
-            
-            // Bottom bar
-            VStack(spacing: 12) {
-                // Progress bar
-                if readingSettings.showProgressBar {
-                    ProgressView(value: renderer.progress)
-                        .tint(.accentColor)
-                        .padding(.horizontal)
-                }
-                
-                // Page info
-                if readingSettings.showPageNumbers {
-                    HStack {
-                        Text("Page \(renderer.currentPage + 1) of \(renderer.totalPages)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        
-                        Spacer()
-                        
-                        Text("\(Int(renderer.progress * 100))%")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal)
-                }
-                
-                // Page slider
-                if renderer.totalPages > 1 {
-                    Slider(
-                        value: Binding(
-                            get: { Double(renderer.currentPage) },
-                            set: { renderer.goToPage(Int($0)) }
-                        ),
-                        in: 0...Double(max(1, renderer.totalPages - 1)),
-                        step: 1
-                    )
-                    .padding(.horizontal)
-                }
-            }
-            .padding(.vertical)
-            .background(
-                LinearGradient(
-                    colors: [readingSettings.pageTheme.backgroundColor.opacity(0), readingSettings.pageTheme.backgroundColor],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
-        }
-    }
-    
-    // MARK: - Tap Zones
-    
-    private func tapZones(geometry: GeometryProxy) -> some View {
-        HStack(spacing: 0) {
-            // Left tap zone - previous page
-            Color.clear
-                .contentShape(Rectangle())
-                .frame(width: geometry.size.width * 0.3)
-                .onTapGesture {
-                    withAnimation {
-                        renderer.previousPage()
-                    }
-                }
-            
-            // Center tap zone - toggle controls
-            Color.clear
-                .contentShape(Rectangle())
-                .frame(width: geometry.size.width * 0.4)
-            
-            // Right tap zone - next page
-            Color.clear
-                .contentShape(Rectangle())
-                .frame(width: geometry.size.width * 0.3)
-                .onTapGesture {
-                    withAnimation {
-                        renderer.nextPage()
-                    }
-                }
-        }
-    }
-}
-
-// MARK: - PDF Reader Content
-
-struct PDFReaderContent: View {
-    @ObservedObject var renderer: DocumentRenderer
-    let settings: ReadingSettings
-    
-    var body: some View {
-        if let pdfDocument = renderer.getPDFDocument() {
-            PDFKitView(document: pdfDocument, currentPage: $renderer.currentPage)
-                .ignoresSafeArea()
-        }
-    }
-}
-
-struct PDFKitView: UIViewRepresentable {
-    let document: PDFDocument
-    @Binding var currentPage: Int
-    
-    func makeUIView(context: Context) -> PDFView {
-        let pdfView = PDFView()
-        pdfView.document = document
-        pdfView.autoScales = true
-        pdfView.displayMode = .singlePage
-        pdfView.displayDirection = .horizontal
-        pdfView.usePageViewController(true)
-        pdfView.backgroundColor = .clear
-        
-        NotificationCenter.default.addObserver(
-            context.coordinator,
-            selector: #selector(Coordinator.pageChanged),
-            name: .PDFViewPageChanged,
-            object: pdfView
+        PaginatedTextContent(
+            renderer: renderer,
+            settings: readingSettings,
+            availableSize: geometry.size
         )
-        
-        return pdfView
     }
     
-    func updateUIView(_ pdfView: PDFView, context: Context) {
-        if let page = document.page(at: currentPage),
-           pdfView.currentPage != page {
-            pdfView.go(to: page)
-        }
-    }
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-    
-    class Coordinator: NSObject {
-        var parent: PDFKitView
-        
-        init(_ parent: PDFKitView) {
-            self.parent = parent
-        }
-        
-        @objc func pageChanged(_ notification: Notification) {
-            guard let pdfView = notification.object as? PDFView,
-                  let currentPage = pdfView.currentPage,
-                  let pageIndex = pdfView.document?.index(for: currentPage) else { return }
+    private var bottomControlBar: some View {
+        VStack(spacing: 12) {
+            // Progress bar
+            if readingSettings.showProgressBar {
+                ProgressView(value: renderer.progress)
+                    .tint(.accentColor)
+                    .padding(.horizontal)
+            }
             
-            DispatchQueue.main.async {
-                if self.parent.currentPage != pageIndex {
-                    self.parent.currentPage = pageIndex
+            // Page info
+            if readingSettings.showPageNumbers {
+                HStack {
+                    Text("Page \(renderer.currentPage + 1) of \(renderer.totalPages)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    
+                    Spacer()
+                    
+                    Text("\(Int(renderer.progress * 100))%")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
+                .padding(.horizontal)
+            }
+            
+            // Page slider
+            if renderer.totalPages > 1 {
+                Slider(
+                    value: Binding(
+                        get: { Double(renderer.currentPage) },
+                        set: { renderer.goToPage(Int($0)) }
+                    ),
+                    in: 0...Double(max(1, renderer.totalPages - 1)),
+                    step: 1
+                )
+                .padding(.horizontal)
             }
         }
+        .padding(.vertical)
+        .background(
+            LinearGradient(
+                colors: [readingSettings.pageTheme.backgroundColor.opacity(0), readingSettings.pageTheme.backgroundColor],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
     }
+    
 }
 
-// MARK: - Text Reader Content
+// MARK: - Paginated Text Content
 
-struct TextReaderContent: View {
+struct PaginatedTextContent: View {
     @ObservedObject var renderer: DocumentRenderer
-    let settings: ReadingSettings
+    @ObservedObject var settings: ReadingSettings
+    let availableSize: CGSize
+    
+    @State private var lastPaginationSettings: PaginationSettings?
+    
+    private struct PaginationSettings: Equatable {
+        let fontSize: Double
+        let fontName: String
+        let lineSpacing: String
+        let margins: Double
+        let width: CGFloat
+        let height: CGFloat
+    }
     
     var body: some View {
-        ScrollView {
-            if let text = renderer.getTextContent() {
-                Text(text)
+        VStack {
+            if renderer.pages.isEmpty {
+                Text("Loading...")
+                    .foregroundStyle(settings.pageTheme.textColor)
+            } else {
+                Text(renderer.getCurrentPageText())
                     .font(settings.currentFont())
                     .foregroundStyle(settings.pageTheme.textColor)
                     .lineSpacing(settings.fontSize * (settings.lineSpacing.multiplier - 1))
                     .multilineTextAlignment(settings.textAlignment.swiftUIAlignment)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .padding(.horizontal, settings.marginSize)
                     .padding(.vertical, 40)
             }
         }
         .background(settings.pageTheme.backgroundColor)
+        .onAppear {
+            paginateIfNeeded()
+        }
+        .onChange(of: settings.fontSize) { _, _ in paginateIfNeeded() }
+        .onChange(of: settings.readingFont) { _, _ in paginateIfNeeded() }
+        .onChange(of: settings.lineSpacing) { _, _ in paginateIfNeeded() }
+        .onChange(of: settings.marginSize) { _, _ in paginateIfNeeded() }
+        .onChange(of: availableSize) { _, _ in paginateIfNeeded() }
+    }
+    
+    private func paginateIfNeeded() {
+        let currentSettings = PaginationSettings(
+            fontSize: settings.fontSize,
+            fontName: settings.readingFont.rawValue,
+            lineSpacing: settings.lineSpacing.rawValue,
+            margins: settings.marginSize,
+            width: availableSize.width,
+            height: availableSize.height
+        )
+        
+        guard currentSettings != lastPaginationSettings else { return }
+        lastPaginationSettings = currentSettings
+        
+        let uiFont = createUIFont()
+        let lineSpacingValue = settings.fontSize * (settings.lineSpacing.multiplier - 1)
+        
+        renderer.paginateText(
+            availableSize: availableSize,
+            font: uiFont,
+            lineSpacing: lineSpacingValue,
+            margins: settings.marginSize
+        )
+    }
+    
+    private func createUIFont() -> UIFont {
+        let size = settings.fontSize
+        
+        switch settings.readingFont {
+        case .system:
+            return UIFont.systemFont(ofSize: size)
+        case .georgia:
+            return UIFont(name: "Georgia", size: size) ?? UIFont.systemFont(ofSize: size)
+        case .palatino:
+            return UIFont(name: "Palatino", size: size) ?? UIFont.systemFont(ofSize: size)
+        case .times:
+            return UIFont(name: "Times New Roman", size: size) ?? UIFont.systemFont(ofSize: size)
+        case .baskerville:
+            return UIFont(name: "Baskerville", size: size) ?? UIFont.systemFont(ofSize: size)
+        case .charter:
+            return UIFont(name: "Charter", size: size) ?? UIFont.systemFont(ofSize: size)
+        case .literata:
+            return UIFont(name: "Literata", size: size) ?? UIFont.systemFont(ofSize: size)
+        case .openDyslexic:
+            return UIFont(name: "OpenDyslexic", size: size) ?? UIFont.systemFont(ofSize: size)
+        }
     }
 }
 
