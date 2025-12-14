@@ -71,7 +71,9 @@ class DocumentRenderer: ObservableObject {
                 }
             }
             
-            let trimmedText = extractedText.trimmingCharacters(in: .whitespacesAndNewlines)
+            // Clean up PDF text: convert single newlines to spaces, preserve paragraph breaks
+            let cleanedText = self?.cleanPDFText(extractedText) ?? extractedText
+            let trimmedText = cleanedText.trimmingCharacters(in: .whitespacesAndNewlines)
             
             DispatchQueue.main.async {
                 guard let self = self else { return }
@@ -120,6 +122,82 @@ class DocumentRenderer: ObservableObject {
             self.error = "Failed to load RTF file: \(error.localizedDescription)"
             isLoading = false
         }
+    }
+    
+    // Clean PDF text by converting single newlines to spaces while preserving paragraph breaks
+    private func cleanPDFText(_ text: String) -> String {
+        // First, normalize line endings
+        var result = text.replacingOccurrences(of: "\r\n", with: "\n")
+        result = result.replacingOccurrences(of: "\r", with: "\n")
+        
+        // Normalize quotes to standard forms for consistent handling
+        result = result.replacingOccurrences(of: "\u{201C}", with: "\"") // left double quote
+        result = result.replacingOccurrences(of: "\u{201D}", with: "\"") // right double quote
+        result = result.replacingOccurrences(of: "\u{2018}", with: "'")  // left single quote
+        result = result.replacingOccurrences(of: "\u{2019}", with: "'")  // right single quote
+        
+        // Preserve scene breaks (often *** or * * * or ---)
+        let sceneBreakPlaceholder = "###SCENEBREAK###"
+        result = result.replacingOccurrences(of: "* * *", with: sceneBreakPlaceholder)
+        result = result.replacingOccurrences(of: "***", with: sceneBreakPlaceholder)
+        result = result.replacingOccurrences(of: "---", with: sceneBreakPlaceholder)
+        
+        // Preserve paragraph breaks (multiple newlines)
+        let paragraphPlaceholder = "###PARAGRAPH###"
+        
+        // Handle 3+ newlines as paragraph breaks
+        while result.contains("\n\n\n") {
+            result = result.replacingOccurrences(of: "\n\n\n", with: "\n\n")
+        }
+        result = result.replacingOccurrences(of: "\n\n", with: paragraphPlaceholder)
+        
+        // Replace remaining single newlines with spaces (mid-paragraph line wraps from PDF)
+        result = result.replacingOccurrences(of: "\n", with: " ")
+        
+        // Restore paragraph breaks
+        result = result.replacingOccurrences(of: paragraphPlaceholder, with: "\n\n")
+        
+        // Clean up multiple spaces
+        while result.contains("  ") {
+            result = result.replacingOccurrences(of: "  ", with: " ")
+        }
+        
+        // Dialog formatting: Add line break before opening quote that follows closing quote
+        // This separates different speakers' dialog
+        // Pattern: end quote + space + open quote -> end quote + newline + open quote
+        let newline = "\n"
+        result = result.replacingOccurrences(of: "\" \"", with: "\"" + newline + "\"")
+        result = result.replacingOccurrences(of: "!\" \"", with: "!\"" + newline + "\"")
+        result = result.replacingOccurrences(of: "?\" \"", with: "?\"" + newline + "\"")
+        
+        // Also handle when dialog attribution comes between quotes
+        // Pattern: ." He said. " -> keep as paragraph, but "said. "" needs break
+        let dialogPattern = try? NSRegularExpression(
+            pattern: #"([.!?])"\s+(\w+\s+\w+[^"]{0,50})\s+""#,
+            options: []
+        )
+        if let regex = dialogPattern {
+            result = regex.stringByReplacingMatches(
+                in: result,
+                range: NSRange(result.startIndex..., in: result),
+                withTemplate: "$1\"" + newline + "$2" + newline + "\""
+            )
+        }
+        
+        // Restore scene breaks with proper spacing
+        let doubleNewline = "\n\n"
+        result = result.replacingOccurrences(of: sceneBreakPlaceholder, with: doubleNewline + "* * *" + doubleNewline)
+        
+        // Trim spaces at start of lines
+        let lines = result.components(separatedBy: "\n")
+        result = lines.map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: "\n")
+        
+        // Clean up excessive newlines
+        while result.contains("\n\n\n") {
+            result = result.replacingOccurrences(of: "\n\n\n", with: "\n\n")
+        }
+        
+        return result
     }
     
     // Paginate text based on available size and font settings using efficient CoreText

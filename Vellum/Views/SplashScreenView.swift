@@ -44,6 +44,7 @@ struct SplashScreenView: View {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
                 scale = 1.0
             }
+            
             withAnimation(.easeIn(duration: 0.4).delay(0.2)) {
                 opacity = 1.0
             }
