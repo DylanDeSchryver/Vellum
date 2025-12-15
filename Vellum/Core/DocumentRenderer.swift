@@ -415,7 +415,167 @@ class DocumentRenderer: ObservableObject {
     private func parseTOC(in tempDir: URL, opfDir: URL, manifest: [String: String]) -> [(title: String, href: String)] {
         var tocItems: [(title: String, href: String)] = []
         
-        // Try NCX file first
+        // Try EPUB 3 NAV document first (more modern format)
+        tocItems = parseEPUB3Nav(in: tempDir, opfDir: opfDir)
+        if !tocItems.isEmpty {
+            return tocItems
+        }
+        
+        // Fall back to NCX file (EPUB 2 format)
+        tocItems = parseNCX(opfDir: opfDir, manifest: manifest)
+        
+        return tocItems
+    }
+    
+    private func parseEPUB3Nav(in tempDir: URL, opfDir: URL) -> [(title: String, href: String)] {
+        var tocItems: [(title: String, href: String)] = []
+        let fileManager = FileManager.default
+        
+        // Search for NAV document - look for XHTML files containing nav with epub:type="toc"
+        let enumerator = fileManager.enumerator(at: tempDir, includingPropertiesForKeys: nil)
+        
+        while let fileURL = enumerator?.nextObject() as? URL {
+            let ext = fileURL.pathExtension.lowercased()
+            guard ext == "xhtml" || ext == "html" || ext == "htm" else { continue }
+            
+            guard let content = try? String(contentsOf: fileURL, encoding: .utf8) else { continue }
+            
+            // Check if this file contains a nav element with epub:type="toc"
+            guard content.contains("epub:type=\"toc\"") || content.contains("epub:type='toc'") else { continue }
+            
+            // Found the NAV document - parse it
+            let navDir = fileURL.deletingLastPathComponent()
+            tocItems = parseNavContent(content, navDir: navDir, opfDir: opfDir)
+            
+            if !tocItems.isEmpty {
+                break
+            }
+        }
+        
+        return tocItems
+    }
+    
+    private func parseNavContent(_ content: String, navDir: URL, opfDir: URL) -> [(title: String, href: String)] {
+        var tocItems: [(title: String, href: String)] = []
+        
+        // Find the nav element with epub:type="toc"
+        // Pattern: <nav epub:type="toc"...>...</nav>
+        guard let navStartRange = content.range(of: "epub:type=\"toc\"") ?? content.range(of: "epub:type='toc'") else {
+            return tocItems
+        }
+        
+        // Find the containing <nav> tag and its closing </nav>
+        let beforeNav = content[..<navStartRange.lowerBound]
+        guard let navTagStart = beforeNav.range(of: "<nav", options: .backwards) else {
+            return tocItems
+        }
+        
+        let afterNavStart = content[navTagStart.lowerBound...]
+        
+        // Find the closing </nav> tag - need to handle nested navs
+        var depth = 0
+        var navEndIndex = afterNavStart.endIndex
+        var searchStart = afterNavStart.startIndex
+        
+        while searchStart < afterNavStart.endIndex {
+            let remaining = afterNavStart[searchStart...]
+            
+            // Find next <nav or </nav
+            let nextOpenRange = remaining.range(of: "<nav", options: .caseInsensitive)
+            let nextCloseRange = remaining.range(of: "</nav>", options: .caseInsensitive)
+            
+            if let openRange = nextOpenRange, let closeRange = nextCloseRange {
+                if openRange.lowerBound < closeRange.lowerBound {
+                    depth += 1
+                    searchStart = openRange.upperBound
+                } else {
+                    if depth == 0 {
+                        navEndIndex = closeRange.upperBound
+                        break
+                    }
+                    depth -= 1
+                    searchStart = closeRange.upperBound
+                }
+            } else if let closeRange = nextCloseRange {
+                if depth == 0 {
+                    navEndIndex = closeRange.upperBound
+                    break
+                }
+                depth -= 1
+                searchStart = closeRange.upperBound
+            } else {
+                break
+            }
+        }
+        
+        let navContent = String(afterNavStart[..<navEndIndex])
+        
+        // Parse <a> tags within <li> elements
+        // Pattern: <a href="...">title</a>
+        let liParts = navContent.components(separatedBy: "<li")
+        
+        for part in liParts.dropFirst() {
+            // Find the <a> tag
+            guard let aStartRange = part.range(of: "<a", options: .caseInsensitive) else { continue }
+            guard let aEndRange = part.range(of: "</a>", options: .caseInsensitive) else { continue }
+            
+            let aTag = String(part[aStartRange.lowerBound..<aEndRange.upperBound])
+            
+            // Extract href
+            var href: String?
+            if let hrefMatch = aTag.range(of: "href=\"[^\"]*\"", options: .regularExpression) {
+                let hrefValue = aTag[hrefMatch]
+                href = String(hrefValue.dropFirst(6).dropLast(1))
+            } else if let hrefMatch = aTag.range(of: "href='[^']*'", options: .regularExpression) {
+                let hrefValue = aTag[hrefMatch]
+                href = String(hrefValue.dropFirst(6).dropLast(1))
+            }
+            
+            // Extract title (text content between > and </a>)
+            var title: String?
+            if let tagCloseRange = aTag.range(of: ">"),
+               let titleEndRange = aTag.range(of: "</a>", options: .caseInsensitive) {
+                let titleContent = String(aTag[tagCloseRange.upperBound..<titleEndRange.lowerBound])
+                // Strip any nested HTML tags from title
+                var cleanTitle = titleContent
+                if let tagRegex = try? NSRegularExpression(pattern: "<[^>]+>", options: []) {
+                    cleanTitle = tagRegex.stringByReplacingMatches(in: cleanTitle, range: NSRange(cleanTitle.startIndex..., in: cleanTitle), withTemplate: "")
+                }
+                title = cleanTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            
+            if let t = title, let h = href, !t.isEmpty {
+                // Decode HTML entities in title
+                let decodedTitle = decodeHTMLEntities(t)
+                tocItems.append((title: decodedTitle, href: h))
+            }
+        }
+        
+        return tocItems
+    }
+    
+    private func decodeHTMLEntities(_ string: String) -> String {
+        var result = string
+        result = result.replacingOccurrences(of: "&nbsp;", with: " ")
+        result = result.replacingOccurrences(of: "&amp;", with: "&")
+        result = result.replacingOccurrences(of: "&lt;", with: "<")
+        result = result.replacingOccurrences(of: "&gt;", with: ">")
+        result = result.replacingOccurrences(of: "&quot;", with: "\"")
+        result = result.replacingOccurrences(of: "&apos;", with: "'")
+        result = result.replacingOccurrences(of: "&#39;", with: "'")
+        result = result.replacingOccurrences(of: "&mdash;", with: "\u{2014}")
+        result = result.replacingOccurrences(of: "&ndash;", with: "\u{2013}")
+        result = result.replacingOccurrences(of: "&hellip;", with: "\u{2026}")
+        result = result.replacingOccurrences(of: "&ldquo;", with: "\u{201C}")
+        result = result.replacingOccurrences(of: "&rdquo;", with: "\u{201D}")
+        result = result.replacingOccurrences(of: "&lsquo;", with: "\u{2018}")
+        result = result.replacingOccurrences(of: "&rsquo;", with: "\u{2019}")
+        return result
+    }
+    
+    private func parseNCX(opfDir: URL, manifest: [String: String]) -> [(title: String, href: String)] {
+        var tocItems: [(title: String, href: String)] = []
+        
         for (_, href) in manifest {
             if href.hasSuffix(".ncx") {
                 let ncxURL = opfDir.appendingPathComponent(href)
