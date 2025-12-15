@@ -30,7 +30,7 @@ class StandardEbooksService: ObservableObject {
     @Published var error: String?
     @Published var featuredBooks: [StandardEbook] = []
     
-    private let opdsBaseURL = "https://standardebooks.org/feeds/opds"
+    private let atomFeedURL = "https://standardebooks.org/feeds/atom"
     private let session = URLSession.shared
     
     private init() {}
@@ -51,8 +51,9 @@ class StandardEbooksService: ObservableObject {
         }
         
         do {
-            // Standard Ebooks OPDS search endpoint
-            let searchURL = "\(opdsBaseURL)/all?query=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query)"
+            // Use the public HTML search page
+            let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+            let searchURL = "https://standardebooks.org/ebooks?query=\(encodedQuery)&per-page=24"
             
             guard let url = URL(string: searchURL) else {
                 throw StandardEbooksError.invalidURL
@@ -65,7 +66,7 @@ class StandardEbooksService: ObservableObject {
                 throw StandardEbooksError.networkError
             }
             
-            let books = parseOPDSFeed(data: data)
+            let books = parseHTMLSearchResults(data: data)
             
             await MainActor.run {
                 self.searchResults = books
@@ -80,6 +81,86 @@ class StandardEbooksService: ObservableObject {
         }
     }
     
+    // MARK: - HTML Search Results Parsing
+    
+    private func parseHTMLSearchResults(data: Data) -> [StandardEbook] {
+        var books: [StandardEbook] = []
+        
+        guard let htmlString = String(data: data, encoding: .utf8) else {
+            return books
+        }
+        
+        // Find all book entries: <li typeof="schema:Book" about="/ebooks/...">
+        let bookPattern = "<li typeof=\"schema:Book\" about=\"(/ebooks/[^\"]+)\">"
+        guard let regex = try? NSRegularExpression(pattern: bookPattern, options: []) else {
+            return books
+        }
+        
+        let matches = regex.matches(in: htmlString, options: [], range: NSRange(htmlString.startIndex..., in: htmlString))
+        
+        for match in matches {
+            guard let bookPathRange = Range(match.range(at: 1), in: htmlString) else { continue }
+            let bookPath = String(htmlString[bookPathRange])
+            
+            // Find the end of this <li> element
+            guard let liStart = htmlString.range(of: "<li typeof=\"schema:Book\" about=\"\(bookPath)\">") else { continue }
+            let searchStart = liStart.upperBound
+            let remaining = String(htmlString[searchStart...])
+            guard let liEnd = remaining.range(of: "</li>") else { continue }
+            let liContent = String(remaining[..<liEnd.lowerBound])
+            
+            // Extract title: <span property="schema:name">Title</span> (first one is the book title)
+            var title = "Unknown Title"
+            if let titleMatch = liContent.range(of: "<span property=\"schema:name\">([^<]+)</span>", options: .regularExpression) {
+                let titleTag = String(liContent[titleMatch])
+                if let start = titleTag.range(of: ">"), let end = titleTag.range(of: "</") {
+                    title = String(titleTag[start.upperBound..<end.lowerBound])
+                }
+            }
+            
+            // Extract author: second schema:name within the author section
+            var author = "Unknown Author"
+            if let authorSection = liContent.range(of: "<p class=\"author\"[^>]*>.*?</p>", options: .regularExpression) {
+                let authorContent = String(liContent[authorSection])
+                if let nameMatch = authorContent.range(of: "<span property=\"schema:name\">([^<]+)</span>", options: .regularExpression) {
+                    let nameTag = String(authorContent[nameMatch])
+                    if let start = nameTag.range(of: ">"), let end = nameTag.range(of: "</") {
+                        author = String(nameTag[start.upperBound..<end.lowerBound])
+                    }
+                }
+            }
+            
+            // Build URLs from the book path
+            // EPUB URL: https://standardebooks.org/ebooks/{path}/downloads/{filename}.epub
+            let pathComponents = bookPath.replacingOccurrences(of: "/ebooks/", with: "").components(separatedBy: "/")
+            let filename = pathComponents.joined(separator: "_")
+            let epubURL = URL(string: "https://standardebooks.org\(bookPath)/downloads/\(filename).epub")
+            
+            // Cover URL from the image in the HTML
+            var coverURL: URL?
+            if let imgMatch = liContent.range(of: "src=\"(/images/covers/[^\"]+)\"", options: .regularExpression) {
+                let imgTag = String(liContent[imgMatch])
+                if let srcStart = imgTag.range(of: "src=\""), let srcEnd = imgTag.range(of: "\"", range: imgTag.index(after: srcStart.upperBound)..<imgTag.endIndex) {
+                    let imgPath = String(imgTag[srcStart.upperBound..<srcEnd.lowerBound])
+                    coverURL = URL(string: "https://standardebooks.org\(imgPath)")
+                }
+            }
+            
+            let book = StandardEbook(
+                id: bookPath,
+                title: decodeHTMLEntities(title),
+                author: decodeHTMLEntities(author),
+                summary: "",
+                epubURL: epubURL,
+                coverURL: coverURL,
+                updated: nil
+            )
+            books.append(book)
+        }
+        
+        return books
+    }
+    
     // MARK: - Featured Books
     
     func loadFeaturedBooks() async {
@@ -88,8 +169,8 @@ class StandardEbooksService: ObservableObject {
         }
         
         do {
-            // Load the all books feed (new-releases may not exist)
-            guard let url = URL(string: "\(opdsBaseURL)/all") else {
+            // Load the public new-releases Atom feed
+            guard let url = URL(string: "\(atomFeedURL)/new-releases") else {
                 throw StandardEbooksError.invalidURL
             }
             
@@ -100,11 +181,10 @@ class StandardEbooksService: ObservableObject {
                 throw StandardEbooksError.networkError
             }
             
-            let books = parseOPDSFeed(data: data)
+            let books = parseAtomFeed(data: data)
             
             await MainActor.run {
-                // Take first 20 as "featured"
-                self.featuredBooks = Array(books.prefix(20))
+                self.featuredBooks = books
                 self.isSearching = false
             }
             
@@ -117,9 +197,9 @@ class StandardEbooksService: ObservableObject {
         }
     }
     
-    // MARK: - OPDS Feed Parsing
+    // MARK: - Atom Feed Parsing
     
-    private func parseOPDSFeed(data: Data) -> [StandardEbook] {
+    private func parseAtomFeed(data: Data) -> [StandardEbook] {
         var books: [StandardEbook] = []
         
         guard let xmlString = String(data: data, encoding: .utf8) else {
@@ -179,29 +259,21 @@ class StandardEbooksService: ObservableObject {
                 }
             }
             
-            // Extract cover image link
+            // Extract cover image link - Atom feed uses media:thumbnail
             var coverURL: URL?
-            let coverPattern = "<link[^>]*rel=\"http://opds-spec.org/image\"[^>]*href=\"([^\"]+)\"[^>]*/>"
-            let coverPatternAlt = "<link[^>]*href=\"([^\"]+)\"[^>]*rel=\"http://opds-spec.org/image\"[^>]*/>"
-            
-            if let match = entryContent.range(of: coverPattern, options: .regularExpression) {
-                let linkTag = String(entryContent[match])
-                if let hrefMatch = linkTag.range(of: "href=\"[^\"]+\"", options: .regularExpression) {
-                    let href = String(linkTag[hrefMatch]).dropFirst(6).dropLast(1)
-                    coverURL = URL(string: String(href))
-                }
-            } else if let match = entryContent.range(of: coverPatternAlt, options: .regularExpression) {
-                let linkTag = String(entryContent[match])
-                if let hrefMatch = linkTag.range(of: "href=\"[^\"]+\"", options: .regularExpression) {
-                    let href = String(linkTag[hrefMatch]).dropFirst(6).dropLast(1)
+            // Look for media:thumbnail url="..."
+            if let match = entryContent.range(of: "<media:thumbnail[^>]*url=\"([^\"]+)\"", options: .regularExpression) {
+                let tag = String(entryContent[match])
+                if let urlMatch = tag.range(of: "url=\"[^\"]+\"", options: .regularExpression) {
+                    let href = String(tag[urlMatch]).dropFirst(5).dropLast(1)
                     coverURL = URL(string: String(href))
                 }
             }
             
-            // Fallback: look for any image link
+            // Fallback: look for any cover image link
             if coverURL == nil {
-                if let imgMatch = entryContent.range(of: "href=\"[^\"]*cover[^\"]*\\.(jpg|jpeg|png)[^\"]*\"", options: [.regularExpression, .caseInsensitive]) {
-                    let href = String(entryContent[imgMatch]).dropFirst(6).dropLast(1)
+                if let imgMatch = entryContent.range(of: "url=\"[^\"]*cover[^\"]*\\.(jpg|jpeg|png)[^\"]*\"", options: [.regularExpression, .caseInsensitive]) {
+                    let href = String(entryContent[imgMatch]).dropFirst(5).dropLast(1)
                     coverURL = URL(string: String(href))
                 }
             }
