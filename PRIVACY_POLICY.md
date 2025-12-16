@@ -36,4 +36,4 @@ If this policy changes, the updated version will be posted at this URL.
 
 ## Contact
 
-For questions about this privacy policy, contact: [your-email@example.com]
+For questions about this privacy policy, contact: dylandeschryver2008@gmail.com
