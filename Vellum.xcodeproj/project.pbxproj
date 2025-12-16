@@ -22,6 +22,17 @@
 		A01000013 /* CollectionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A02000013 /* CollectionsView.swift */; };
 		A01000014 /* CurrentlyReadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A02000014 /* CurrentlyReadingView.swift */; };
 		A01000015 /* SplashScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A02000015 /* SplashScreenView.swift */; };
+		FCA65E1E2EEF36300089BA9A /* GutenbergSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCA65E1D2EEF36300089BA9A /* GutenbergSearchView.swift */; };
+		FCA65E202EEF364B0089BA9A /* GutenbergService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCA65E1F2EEF364B0089BA9A /* GutenbergService.swift */; };
+		FCA65E222EEF38C80089BA9A /* DiscoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCA65E212EEF38C80089BA9A /* DiscoverView.swift */; };
+		FCA65E242EEF38E20089BA9A /* FileManager+Unzip.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCA65E232EEF38E20089BA9A /* FileManager+Unzip.swift */; };
+		FCA65E262EEF3BD30089BA9A /* EPUBTableOfContentsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCA65E252EEF3BD30089BA9A /* EPUBTableOfContentsSheet.swift */; };
+		FCA65E272EEF50000089BA9A /* StandardEbooksService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCA65E282EEF50000089BA9A /* StandardEbooksService.swift */; };
+		FCA65E292EF06A000089BA9A /* BookRecommendationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCA65E2A2EF06A000089BA9A /* BookRecommendationService.swift */; };
+		FCA65E2B2EF06A000089BA9A /* AIRecommendationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCA65E2C2EF06A000089BA9A /* AIRecommendationView.swift */; };
+		FCA65E2D2EF06B000089BA9A /* OpenLibraryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCA65E2E2EF06B000089BA9A /* OpenLibraryService.swift */; };
+		FCA65E2F2EF06B000089BA9A /* EPUBMetadataExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCA65E302EF06B000089BA9A /* EPUBMetadataExtractor.swift */; };
+		FCA65E312EF06C000089BA9A /* CuratedBookDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCA65E322EF06C000089BA9A /* CuratedBookDatabase.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -42,6 +53,17 @@
 		A02000015 /* SplashScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreenView.swift; sourceTree = "<group>"; };
 		A02000016 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A03000001 /* Vellum.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Vellum.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		FCA65E1D2EEF36300089BA9A /* GutenbergSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GutenbergSearchView.swift; sourceTree = "<group>"; };
+		FCA65E1F2EEF364B0089BA9A /* GutenbergService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GutenbergService.swift; sourceTree = "<group>"; };
+		FCA65E212EEF38C80089BA9A /* DiscoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverView.swift; sourceTree = "<group>"; };
+		FCA65E232EEF38E20089BA9A /* FileManager+Unzip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileManager+Unzip.swift"; sourceTree = "<group>"; };
+		FCA65E252EEF3BD30089BA9A /* EPUBTableOfContentsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EPUBTableOfContentsSheet.swift; sourceTree = "<group>"; };
+		FCA65E282EEF50000089BA9A /* StandardEbooksService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StandardEbooksService.swift; sourceTree = "<group>"; };
+		FCA65E2A2EF06A000089BA9A /* BookRecommendationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookRecommendationService.swift; sourceTree = "<group>"; };
+		FCA65E2C2EF06A000089BA9A /* AIRecommendationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIRecommendationView.swift; sourceTree = "<group>"; };
+		FCA65E2E2EF06B000089BA9A /* OpenLibraryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenLibraryService.swift; sourceTree = "<group>"; };
+		FCA65E302EF06B000089BA9A /* EPUBMetadataExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EPUBMetadataExtractor.swift; sourceTree = "<group>"; };
+		FCA65E322EF06C000089BA9A /* CuratedBookDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CuratedBookDatabase.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -80,6 +102,13 @@
 		A05000003 /* Core */ = {
 			isa = PBXGroup;
 			children = (
+				FCA65E2A2EF06A000089BA9A /* BookRecommendationService.swift */,
+				FCA65E322EF06C000089BA9A /* CuratedBookDatabase.swift */,
+				FCA65E302EF06B000089BA9A /* EPUBMetadataExtractor.swift */,
+				FCA65E232EEF38E20089BA9A /* FileManager+Unzip.swift */,
+				FCA65E1F2EEF364B0089BA9A /* GutenbergService.swift */,
+				FCA65E2E2EF06B000089BA9A /* OpenLibraryService.swift */,
+				FCA65E282EEF50000089BA9A /* StandardEbooksService.swift */,
 				A02000004 /* ThemeManager.swift */,
 				A02000005 /* ReadingSettings.swift */,
 				A02000006 /* CoreDataManager.swift */,
@@ -100,6 +129,10 @@
 		A05000005 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				FCA65E2C2EF06A000089BA9A /* AIRecommendationView.swift */,
+				FCA65E252EEF3BD30089BA9A /* EPUBTableOfContentsSheet.swift */,
+				FCA65E212EEF38C80089BA9A /* DiscoverView.swift */,
+				FCA65E1D2EEF36300089BA9A /* GutenbergSearchView.swift */,
 				A02000010 /* LibraryView.swift */,
 				A02000011 /* ReaderView.swift */,
 				A02000012 /* SettingsView.swift */,
@@ -188,19 +221,30 @@
 			buildActionMask = 2147483647;
 			files = (
 				A01000001 /* VellumApp.swift in Sources */,
+				FCA65E222EEF38C80089BA9A /* DiscoverView.swift in Sources */,
+				FCA65E242EEF38E20089BA9A /* FileManager+Unzip.swift in Sources */,
 				A01000002 /* ContentView.swift in Sources */,
 				A01000004 /* ThemeManager.swift in Sources */,
 				A01000005 /* ReadingSettings.swift in Sources */,
 				A01000006 /* CoreDataManager.swift in Sources */,
+				FCA65E202EEF364B0089BA9A /* GutenbergService.swift in Sources */,
 				A01000007 /* LibraryController.swift in Sources */,
 				A01000008 /* DocumentRenderer.swift in Sources */,
+				FCA65E262EEF3BD30089BA9A /* EPUBTableOfContentsSheet.swift in Sources */,
 				A01000009 /* VellumModel.xcdatamodeld in Sources */,
 				A01000010 /* LibraryView.swift in Sources */,
 				A01000011 /* ReaderView.swift in Sources */,
 				A01000012 /* SettingsView.swift in Sources */,
+				FCA65E1E2EEF36300089BA9A /* GutenbergSearchView.swift in Sources */,
 				A01000013 /* CollectionsView.swift in Sources */,
 				A01000014 /* CurrentlyReadingView.swift in Sources */,
 				A01000015 /* SplashScreenView.swift in Sources */,
+				FCA65E272EEF50000089BA9A /* StandardEbooksService.swift in Sources */,
+				FCA65E292EF06A000089BA9A /* BookRecommendationService.swift in Sources */,
+				FCA65E2B2EF06A000089BA9A /* AIRecommendationView.swift in Sources */,
+				FCA65E2D2EF06B000089BA9A /* OpenLibraryService.swift in Sources */,
+				FCA65E2F2EF06B000089BA9A /* EPUBMetadataExtractor.swift in Sources */,
+				FCA65E312EF06C000089BA9A /* CuratedBookDatabase.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -331,9 +375,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 5TTNP6MWRX;
+				DEVELOPMENT_TEAM = 5GDMGZQR8W;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Vellum/Info.plist;
@@ -349,8 +394,9 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.vellum.reader;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vellum.reader.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -364,9 +410,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 5TTNP6MWRX;
+				DEVELOPMENT_TEAM = 5GDMGZQR8W;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Vellum/Info.plist;
@@ -382,8 +429,9 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.vellum.reader;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vellum.reader.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
