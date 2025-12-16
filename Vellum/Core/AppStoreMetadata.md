@@ -104,13 +104,13 @@ Last Updated: December 2025
 Vellum ("the App") is designed with your privacy as a priority.
 
 DATA COLLECTION
-Vellum does not collect, store, or transmit any personal data. The App operates entirely offline and does not make any network requests.
+Vellum does not collect, store, or transmit any personal data.
 
 LOCAL STORAGE
 All data, including your imported books, reading progress, bookmarks, and preferences, is stored locally on your device. This data is never transmitted to external servers.
 
 THIRD-PARTY SERVICES
-Vellum does not integrate with any third-party analytics, advertising, or tracking services.
+Vellum does not integrate with any third-party analytics, advertising, or tracking services. However, it does use public APIs to acces public domain books from Project Gutenberg and Standard Ebooks.
 
 FILE ACCESS
 Vellum only accesses files that you explicitly choose to import into the app. The App does not access any other files on your device.
