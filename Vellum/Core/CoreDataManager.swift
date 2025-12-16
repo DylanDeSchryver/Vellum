@@ -48,7 +48,9 @@ class CoreDataManager {
         fileType: String,
         fileSize: Int64,
         pageCount: Int32,
-        coverImage: Data?
+        coverImage: Data?,
+        bookDescription: String? = nil,
+        subjects: String? = nil
     ) -> Document {
         let document = Document(context: viewContext)
         document.id = UUID()
@@ -59,6 +61,8 @@ class CoreDataManager {
         document.fileSize = fileSize
         document.pageCount = pageCount
         document.coverImage = coverImage
+        document.bookDescription = bookDescription
+        document.subjects = subjects
         document.dateAdded = Date()
         document.lastOpened = nil
         document.currentPage = 0
@@ -67,6 +71,16 @@ class CoreDataManager {
         
         save()
         return document
+    }
+    
+    func updateDocumentMetadata(_ document: Document, description: String?, subjects: String?) {
+        if let description = description, document.bookDescription == nil || document.bookDescription?.isEmpty == true {
+            document.bookDescription = description
+        }
+        if let subjects = subjects, document.subjects == nil || document.subjects?.isEmpty == true {
+            document.subjects = subjects
+        }
+        save()
     }
     
     func fetchAllDocuments() -> [Document] {

@@ -114,6 +114,8 @@ class LibraryController: ObservableObject {
                 var author: String?
                 var pageCount: Int32 = 0
                 var coverImage: Data?
+                var bookDescription: String?
+                var subjects: String?
                 
                 if fileType == "pdf" {
                     if let pdfDocument = PDFDocument(url: destinationURL) {
@@ -145,26 +147,68 @@ class LibraryController: ObservableObject {
                             coverImage = image.jpegData(compressionQuality: 0.7)
                         }
                     }
+                } else if fileType == "epub" {
+                    let epubMetadata = EPUBMetadataExtractor.extractMetadata(from: destinationURL)
+                    
+                    if let epubTitle = epubMetadata.title, !epubTitle.isEmpty {
+                        title = epubTitle
+                    }
+                    if let epubAuthor = epubMetadata.author, !epubAuthor.isEmpty {
+                        author = epubAuthor
+                    }
+                    if let epubDescription = epubMetadata.description, !epubDescription.isEmpty {
+                        bookDescription = epubDescription
+                    }
+                    if !epubMetadata.subjects.isEmpty {
+                        subjects = epubMetadata.subjects.joined(separator: ", ")
+                    }
+                    if let epubCover = epubMetadata.coverImageData {
+                        coverImage = epubCover
+                    }
                 }
                 
                 DispatchQueue.main.async {
-                    _ = self.coreDataManager.createDocument(
+                    let document = self.coreDataManager.createDocument(
                         title: title,
                         author: author,
                         filePath: destinationURL.path,
                         fileType: fileType,
                         fileSize: fileSize,
                         pageCount: pageCount,
-                        coverImage: coverImage
+                        coverImage: coverImage,
+                        bookDescription: bookDescription,
+                        subjects: subjects
                     )
                     self.loadDocuments()
                     self.isImporting = false
+                    
+                    if bookDescription == nil || subjects == nil {
+                        self.enrichMetadataFromOpenLibrary(for: document)
+                    }
                 }
                 
             } catch {
                 DispatchQueue.main.async {
                     self.importError = error.localizedDescription
                     self.isImporting = false
+                }
+            }
+        }
+    }
+    
+    private func enrichMetadataFromOpenLibrary(for document: Document) {
+        guard let title = document.title else { return }
+        
+        Task {
+            if let metadata = await OpenLibraryService.shared.fetchMetadata(title: title, author: document.author) {
+                await MainActor.run {
+                    let subjectsString = metadata.subjects.isEmpty ? nil : metadata.subjects.prefix(10).joined(separator: ", ")
+                    self.coreDataManager.updateDocumentMetadata(
+                        document,
+                        description: metadata.description,
+                        subjects: subjectsString
+                    )
+                    self.loadDocuments()
                 }
             }
         }

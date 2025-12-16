@@ -19,6 +19,7 @@ struct VellumApp: App {
                 
                 if showSplash {
                     SplashScreenView()
+                    
                         .transition(.opacity.animation(.easeOut(duration: 0.5)))
                         .zIndex(1)
                 }

@@ -8,6 +8,7 @@ struct LibraryView: View {
     @State private var selectedDocument: Document?
     @State private var viewMode: ViewMode = .grid
     @State private var showingSortOptions = false
+    @State private var showingAIRecommendations = false
     
     enum ViewMode {
         case grid, list
@@ -125,10 +126,19 @@ struct LibraryView: View {
             .searchable(text: $libraryController.searchQuery, prompt: "Search books")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showingImporter = true
-                    } label: {
-                        Image(systemName: "plus")
+                    HStack(spacing: 16) {
+                        Button {
+                            showingAIRecommendations = true
+                        } label: {
+                            Image(systemName: "sparkles")
+                        }
+                        .disabled(libraryController.documents.isEmpty)
+                        
+                        Button {
+                            showingImporter = true
+                        } label: {
+                            Image(systemName: "plus")
+                        }
                     }
                 }
             }
@@ -155,6 +165,9 @@ struct LibraryView: View {
                 if libraryController.isImporting {
                     ImportingOverlay()
                 }
+            }
+            .sheet(isPresented: $showingAIRecommendations) {
+                AIRecommendationView()
             }
         }
     }
