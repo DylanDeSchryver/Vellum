@@ -238,16 +238,66 @@ class BookRecommendationService: ObservableObject {
     }
     
     private func generateExternalSuggestions(from selectedDocuments: [Document], themes: [String]) async -> [BookRecommendation] {
+        let database = CuratedBookDatabase.shared
+        
+        // First, try to find curated profiles for selected books
+        var bookProfiles: [BookProfile] = []
+        var unknownBooks: [Document] = []
+        
+        for doc in selectedDocuments {
+            if let title = doc.title, let profile = database.getProfile(for: title) {
+                bookProfiles.append(profile)
+            } else {
+                unknownBooks.append(doc)
+            }
+        }
+        
+        // For books not in our database, create profiles from their metadata
+        for doc in unknownBooks {
+            if let title = doc.title {
+                let profile = database.createProfileFromDocument(
+                    title: title,
+                    author: doc.author,
+                    subjects: doc.subjects
+                )
+                bookProfiles.append(profile)
+            }
+        }
+        
+        // If we have profiles, use the curated matching system
+        if !bookProfiles.isEmpty {
+            let excludeTitles = Set(selectedDocuments.compactMap { $0.title })
+            let matches = database.findBestMatches(for: bookProfiles, excludeTitles: excludeTitles, limit: 3)
+            
+            if !matches.isEmpty {
+                return matches.enumerated().map { index, match in
+                    let score = max(0.5, 0.95 - Double(index) * 0.1)
+                    return BookRecommendation(
+                        title: match.book.title,
+                        author: match.book.author,
+                        reason: match.reason,
+                        similarityScore: score,
+                        searchQuery: "\(match.book.title) \(match.book.author)"
+                    )
+                }
+            }
+        }
+        
+        // Fallback to Open Library search if curated matching fails
         var allSubjects: [String] = []
         
         for doc in selectedDocuments {
             if let subjects = doc.subjects {
                 allSubjects.append(contentsOf: subjects.components(separatedBy: ", "))
             }
-            
-            if allSubjects.isEmpty, let title = doc.title {
-                if let metadata = await OpenLibraryService.shared.fetchMetadata(title: title, author: doc.author) {
-                    allSubjects.append(contentsOf: metadata.subjects)
+        }
+        
+        if allSubjects.isEmpty {
+            for doc in selectedDocuments {
+                if let title = doc.title {
+                    if let metadata = await OpenLibraryService.shared.fetchMetadata(title: title, author: doc.author) {
+                        allSubjects.append(contentsOf: metadata.subjects)
+                    }
                 }
             }
         }
