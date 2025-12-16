@@ -135,7 +135,14 @@ For questions about this privacy policy, contact: [your email]
 
 ## App Privacy (Data Collection Declaration)
 
-When Apple asks "Does your app collect any data?", answer based on this:
+### Third-Party Content Declaration
+
+**Question:** "Does your app contain, show, or access third-party content?"  
+**Answer:** ✅ **Yes, it contains, shows, or accesses third-party content, and I have the necessary rights**
+
+*Reason: The app accesses Project Gutenberg (via gutendex.com API) and Standard Ebooks to search and download public domain books. These are freely licensed/public domain sources.*
+
+---
 
 ### Data Types to Declare: **NONE**
 
@@ -143,14 +150,13 @@ In App Store Connect, under App Privacy:
 
 1. **Do you collect data from this app?** → **No**
 
-That's it! Since Vellum:
-- Makes no network requests
-- Stores everything locally on-device
-- Has no analytics or crash reporting
-- Has no user accounts
-- Has no third-party SDKs
+**Why "No" is still correct:**
+- Your app does not collect, store, or transmit user data to YOUR servers
+- You have no analytics, no user accounts, no tracking
+- The search queries go to gutendex.com (a public API), but YOU don't collect that data
+- Third-party public APIs you call are not the same as third-party SDKs that track users
 
-You can honestly declare that you collect **no data**.
+**Note:** Search queries sent to Project Gutenberg/Standard Ebooks are visible to those services, but this is standard API usage — not data collection by your app.
 
 ---
 
